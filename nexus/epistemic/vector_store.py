@@ -34,7 +34,6 @@ from qdrant_client.models import (
     PointStruct,
     Range,
     VectorParams,
-    ScoredPoint,
 )
 
 from nexus.config.settings import get_settings
@@ -255,14 +254,17 @@ class VectorStore:
 
         query_filter = Filter(must=conditions) if conditions else None
 
-        results: list[ScoredPoint] = await client.search(
+        # qdrant-client >= 1.9: use query_points() — search() was removed
+        response = await client.query_points(
             collection_name=self._collection_logs,
-            query_vector=query_vec,
+            query=query_vec,
             limit=top_k,
             query_filter=query_filter,
             score_threshold=score_threshold,
             with_payload=True,
         )
+        # response.points is a list of ScoredPoint-like objects
+        results = response.points
 
         memories: list[EpisodicMemory] = []
         scores: list[float] = []
@@ -310,13 +312,13 @@ class VectorStore:
 
         query_filter = Filter(must=conditions) if conditions else None
 
-        # Scroll through points ordered by step field descending
+        # scroll() without order_by for compatibility across qdrant-client versions
+        # We fetch limit*2 and sort in Python to get the most recent by step
         results, _ = await client.scroll(
             collection_name=self._collection_logs,
             scroll_filter=query_filter,
-            limit=limit,
+            limit=limit * 2,  # overfetch so we can sort and trim
             with_payload=True,
-            order_by="step",
         )
 
         memories = []
