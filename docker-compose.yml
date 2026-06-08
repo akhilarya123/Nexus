@@ -1,0 +1,126 @@
+version: "3.9"
+
+# =============================================================================
+# NEXUS — Local Infrastructure Stack (100% Free, No External APIs)
+# Services: Neo4j | Qdrant | Redis | Jaeger
+# Platform: Mac M1 (arm64) compatible images used throughout
+# =============================================================================
+
+networks:
+  nexus-net:
+    driver: bridge
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  qdrant_data:
+  redis_data:
+  jaeger_data:
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # NEO4J — Graph Database (Hierarchical Graph RAG)
+  # Community Edition is fully free
+  # UI: http://localhost:7474  |  Bolt: bolt://localhost:7687
+  # ---------------------------------------------------------------------------
+  neo4j:
+    image: neo4j:5.18-community
+    container_name: nexus-neo4j
+    platform: linux/arm64
+    restart: unless-stopped
+    ports:
+      - "7474:7474"   # HTTP browser
+      - "7687:7687"   # Bolt protocol
+    environment:
+      NEO4J_AUTH: neo4j/nexuspassword
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+      NEO4J_dbms_memory_heap_initial__size: "512m"
+      NEO4J_dbms_memory_heap_max__size: "1G"
+      NEO4J_dbms_memory_pagecache_size: "512m"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - nexus-net
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # QDRANT — Vector Database (Episodic Vector Memory)
+  # Fully open-source, no license restrictions
+  # UI: http://localhost:6333/dashboard
+  # ---------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: nexus-qdrant
+    platform: linux/arm64
+    restart: unless-stopped
+    ports:
+      - "6333:6333"   # REST API
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - nexus-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # REDIS — Message Queue + Cache (Celery task broker, MCTS state cache)
+  # Apache 2.0 licensed, fully free
+  # Port: 6379
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: nexus-redis
+    platform: linux/arm64
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru --save 60 1
+    volumes:
+      - redis_data:/data
+    networks:
+      - nexus-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # JAEGER — Distributed Tracing (OpenTelemetry backend)
+  # Apache 2.0 licensed, fully free
+  # UI: http://localhost:16686
+  # ---------------------------------------------------------------------------
+  jaeger:
+    image: jaegertracing/all-in-one:1.56
+    container_name: nexus-jaeger
+    platform: linux/arm64
+    restart: unless-stopped
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC receiver
+      - "4318:4318"     # OTLP HTTP receiver
+      - "6831:6831/udp" # Jaeger agent UDP
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      SPAN_STORAGE_TYPE: "memory"    # Use badger for persistence: badger
+    networks:
+      - nexus-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:16686"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
