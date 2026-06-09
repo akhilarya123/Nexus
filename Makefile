@@ -2,6 +2,8 @@
 # NEXUS — Developer Makefile
 # =============================================================================
 
+PYTHON ?= .venv/bin/python
+
 .PHONY: help install dev-install up down health test lint fmt clean
 
 help:  ## Show this help
@@ -11,10 +13,10 @@ help:  ## Show this help
 # ---- Setup ----
 
 install:  ## Install Python package (production)
-	pip install -e .
+	$(PYTHON) -m pip install -e .
 
 dev-install:  ## Install with dev extras
-	pip install -e ".[dev]"
+	$(PYTHON) -m pip install -e ".[dev]"
 
 # ---- Infrastructure ----
 
@@ -23,7 +25,7 @@ up:  ## Start all Docker services
 	@echo ""
 	@echo "⏳ Waiting 20s for Neo4j to initialise..."
 	@sleep 20
-	@python scripts/health_check.py
+	@$(PYTHON) scripts/health_check.py
 
 down:  ## Stop all Docker services
 	docker compose down
@@ -32,27 +34,33 @@ down-clean:  ## Stop services AND delete all volumes (wipes all data)
 	docker compose down -v
 
 health:  ## Check all service health
-	python scripts/health_check.py
+	$(PYTHON) scripts/health_check.py
 
 # ---- Development ----
 
 test:  ## Run unit tests
-	pytest tests/unit -v
+	$(PYTHON) -m pytest tests/unit -v
 
 test-m1:  ## Run Milestone 1 integration tests (requires: make up)
-	pytest tests/integration/test_milestone1.py -v -s
+	$(PYTHON) -m pytest tests/integration/test_milestone1.py -v -s
+
+test-m2:  ## Run Milestone 1 integration tests (requires: make up)
+	$(PYTHON) -m pytest tests/integration/test_milestone2.py -v -s
+
+test-m3:  ## Run Milestone 3 tests — sandbox + router (no Docker/Ollama needed)
+	pytest tests/integration/test_milestone3.py -v -s
 
 test-all:  ## Run all tests including integration (requires services up)
-	pytest tests/ -v -s
+	$(PYTHON) -m pytest tests/ -v -s
 
 lint:  ## Run ruff linter
-	ruff check nexus/ tests/ scripts/
+	$(PYTHON) -m ruff check nexus/ tests/ scripts/
 
 fmt:  ## Auto-format with ruff
-	ruff format nexus/ tests/ scripts/
+	$(PYTHON) -m ruff format nexus/ tests/ scripts/
 
 typecheck:  ## Run mypy type checker
-	mypy nexus/
+	$(PYTHON) -m mypy nexus/
 
 # ---- Ollama ----
 

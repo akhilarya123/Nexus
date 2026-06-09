@@ -88,6 +88,7 @@ class GraphStore:
         self._max_depth = cfg.max_depth
         self._max_nodes = cfg.max_nodes_per_query
         self._driver: AsyncDriver | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -96,11 +97,13 @@ class GraphStore:
     async def connect(self) -> None:
         """Open the driver and verify connectivity."""
         try:
+            await self._dispose_driver()
             self._driver = AsyncGraphDatabase.driver(
                 self._uri,
                 auth=self._auth,
                 max_connection_pool_size=20,
             )
+            self._loop = asyncio.get_running_loop()
             await self._driver.verify_connectivity()
             log.info("Neo4j connected", uri=self._uri)
             await self._init_schema()
@@ -108,10 +111,21 @@ class GraphStore:
             log.error("Neo4j connection failed", error=str(exc))
             raise
 
+    async def _dispose_driver(self) -> None:
+        if self._driver is None:
+            return
+
+        try:
+            await self._driver.close()
+        except Exception:
+            pass
+        finally:
+            self._driver = None
+            self._loop = None
+
     async def close(self) -> None:
         if self._driver:
-            await self._driver.close()
-            self._driver = None
+            await self._dispose_driver()
             log.info("Neo4j connection closed")
 
     async def __aenter__(self) -> "GraphStore":
@@ -124,8 +138,9 @@ class GraphStore:
     @asynccontextmanager
     async def _session(self) -> AsyncGenerator[AsyncSession, None]:
         """Yield a fresh session, ensuring the driver is open."""
-        if self._driver is None:
-            raise RuntimeError("GraphStore not connected — call await store.connect() first")
+        current_loop = asyncio.get_running_loop()
+        if self._driver is None or self._loop is not current_loop:
+            await self.connect()
         async with self._driver.session(database=self._database) as session:
             yield session
 
@@ -281,10 +296,12 @@ class GraphStore:
         max_d = min(depth or self._max_depth, self._max_depth)
         query = f"""
         MATCH path = (seed:Entity {{id: $id}})-[*0..{max_d}]-(neighbor:Entity)
-        WITH nodes(path) AS ns, relationships(path) AS rs
-        UNWIND ns AS n
-        WITH collect(DISTINCT n) AS all_nodes, rs
-        UNWIND rs AS r
+        WITH collect(DISTINCT path) AS paths
+        UNWIND paths AS path
+        UNWIND nodes(path) AS n
+        WITH collect(DISTINCT n) AS all_nodes, paths
+        UNWIND paths AS path
+        UNWIND relationships(path) AS r
         RETURN all_nodes, collect(DISTINCT r) AS all_rels
         LIMIT $limit
         """
@@ -337,10 +354,12 @@ class GraphStore:
         MATCH (start:Entity)
         WHERE toLower(start.name) = toLower($name)
         MATCH path = (start)-{rel_pattern}-(target{target_filter})
-        WITH nodes(path) AS ns, relationships(path) AS rs
-        UNWIND ns AS n
-        WITH collect(DISTINCT n) AS all_nodes, rs
-        UNWIND rs AS r
+        WITH collect(DISTINCT path) AS paths
+        UNWIND paths AS path
+        UNWIND nodes(path) AS n
+        WITH collect(DISTINCT n) AS all_nodes, paths
+        UNWIND paths AS path
+        UNWIND relationships(path) AS r
         RETURN all_nodes, collect(DISTINCT r) AS all_rels
         LIMIT $limit
         """

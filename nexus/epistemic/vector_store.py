@@ -21,6 +21,7 @@ This class ONLY handles Qdrant I/O.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Any
 
@@ -68,6 +69,7 @@ class VectorStore:
         self._collection_tools = cfg.collection_tool_schemas
         self._vector_size = cfg.vector_size
         self._client: AsyncQdrantClient | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._embedder = get_embedder()
 
     # ------------------------------------------------------------------
@@ -76,14 +78,27 @@ class VectorStore:
 
     async def connect(self) -> None:
         """Open connection and ensure collections exist."""
+        await self._dispose_client()
         self._client = AsyncQdrantClient(host=self._host, port=self._port)
+        self._loop = asyncio.get_running_loop()
         log.info("Qdrant connected", host=self._host, port=self._port)
         await self._init_collections()
 
+    async def _dispose_client(self) -> None:
+        if self._client is None:
+            return
+
+        try:
+            await self._client.close()
+        except Exception:
+            pass
+        finally:
+            self._client = None
+            self._loop = None
+
     async def close(self) -> None:
         if self._client:
-            await self._client.close()
-            self._client = None
+            await self._dispose_client()
             log.info("Qdrant connection closed")
 
     async def __aenter__(self) -> "VectorStore":
@@ -93,7 +108,10 @@ class VectorStore:
     async def __aexit__(self, *_: Any) -> None:
         await self.close()
 
-    def _require_client(self) -> AsyncQdrantClient:
+    async def _require_client(self) -> AsyncQdrantClient:
+        current_loop = asyncio.get_running_loop()
+        if self._client is None or self._loop is not current_loop:
+            await self.connect()
         if self._client is None:
             raise RuntimeError("VectorStore not connected — call await store.connect() first")
         return self._client
@@ -104,7 +122,7 @@ class VectorStore:
 
     async def _init_collections(self) -> None:
         """Create collections if they don't already exist (idempotent)."""
-        client = self._require_client()
+        client = await self._require_client()
         existing = {c.name for c in (await client.get_collections()).collections}
 
         for name in [self._collection_logs, self._collection_tools]:
@@ -130,7 +148,7 @@ class VectorStore:
         Embed and store a single EpisodicMemory.
         Returns the Qdrant point ID (same as memory.id).
         """
-        client = self._require_client()
+        client = await self._require_client()
         vector = self._embedder.embed(memory.content)
 
         point = PointStruct(
@@ -164,7 +182,7 @@ class VectorStore:
         if not memories:
             return []
 
-        client = self._require_client()
+        client = await self._require_client()
         texts = [m.content for m in memories]
         vectors = self._embedder.embed_batch(texts, batch_size=batch_size)
 
@@ -225,7 +243,7 @@ class VectorStore:
         Returns:
             VectorContext with ranked EpisodicMemory objects and scores.
         """
-        client = self._require_client()
+        client = await self._require_client()
         query_vec = self._embedder.embed(query)
 
         # Build optional payload filter
@@ -304,7 +322,7 @@ class VectorStore:
         Retrieve the most recent N memories ordered by step (descending).
         Used by the sliding-window context builder.
         """
-        client = self._require_client()
+        client = await self._require_client()
 
         conditions = []
         if agent:
@@ -349,25 +367,25 @@ class VectorStore:
 
     async def stats(self) -> dict[str, Any]:
         """Collection statistics — total vectors stored."""
-        client = self._require_client()
+        client = await self._require_client()
         info_logs = await client.get_collection(self._collection_logs)
         info_tools = await client.get_collection(self._collection_tools)
         return {
             "collection_logs": {
                 "name": self._collection_logs,
-                "vectors_count": info_logs.vectors_count,
+                "vectors_count": info_logs.points_count,
                 "points_count": info_logs.points_count,
             },
             "collection_tools": {
                 "name": self._collection_tools,
-                "vectors_count": info_tools.vectors_count,
+                "vectors_count": info_tools.points_count,
                 "points_count": info_tools.points_count,
             },
         }
 
     async def clear(self) -> None:
         """Delete all points from all collections. Use only in tests."""
-        client = self._require_client()
+        client = await self._require_client()
         for name in [self._collection_logs, self._collection_tools]:
             await client.delete_collection(name)
         await self._init_collections()
