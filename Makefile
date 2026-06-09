@@ -44,11 +44,20 @@ test:  ## Run unit tests
 test-m1:  ## Run Milestone 1 integration tests (requires: make up)
 	$(PYTHON) -m pytest tests/integration/test_milestone1.py -v -s
 
-test-m2:  ## Run Milestone 1 integration tests (requires: make up)
-	$(PYTHON) -m pytest tests/integration/test_milestone2.py -v -s
+test-m2:  ## Run Milestone 2 integration tests (requires: make up)
+	NEXUS_ENABLE_DYNAMIC_TOOLS=0 $(PYTHON) -m pytest tests/integration/test_milestone2.py -v -s
 
 test-m3:  ## Run Milestone 3 tests — sandbox + router (no Docker/Ollama needed)
 	pytest tests/integration/test_milestone3.py -v -s
+
+test-m4:  ## Run Milestone 4 tests — metrics, dashboard, end-to-end runner
+	pytest tests/integration/test_milestone4.py -v -s
+ 
+benchmark:  ## Run the full end-to-end benchmark (50 steps, no Ollama)
+	$(PYTHON) scripts/run_benchmark.py
+
+benchmark-llm:  ## Run benchmark with real gemma3 synthesis (requires: ollama serve)
+	python scripts/run_benchmark.py --use-llm
 
 test-all:  ## Run all tests including integration (requires services up)
 	$(PYTHON) -m pytest tests/ -v -s

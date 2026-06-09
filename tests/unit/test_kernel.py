@@ -42,10 +42,34 @@ def test_kernel_synthesizes_and_calls_tool_on_gap():
     )
 
     assert final_state.current_context == "mock rows"
-    assert final_state.history == [
-        "TOOL_GAP",
-        "Synthesized tools: ['default.cql_query']",
-        "Tool call cql_query: True",
-    ]
+    assert final_state.history == ["TOOL_GAP"]
     kernel.fabric.synthesize_and_mount.assert_awaited_once()
     kernel.fabric.call_tool.assert_awaited_once()
+
+
+def test_kernel_dedupes_repeated_gap_synthesis_within_run():
+    kernel = OrchestrationKernel()
+
+    kernel.planner.plan_next_step = lambda state, critic: PlanStep(
+        action_type="TOOL_GAP",
+        parameters={
+            "needs_new_tool": True,
+            "tool_gap_description": "Unknown action execution.",
+        },
+    )
+    kernel.executor.execute = lambda step: ActionResult(
+        success=False,
+        output="Unknown action execution.",
+    )
+    kernel.critic.evaluate_state = lambda state: 1.0
+    kernel.fabric.synthesize_and_mount = AsyncMock(return_value=["default.unknown_action_executor"])
+    kernel.fabric.call_tool = AsyncMock()
+
+    final_state = kernel.run_exploration(
+        initial_context="Starting context",
+        max_steps=5,
+    )
+
+    assert final_state.step_count == 5
+    # Same gap signature should be synthesized only once.
+    kernel.fabric.synthesize_and_mount.assert_awaited_once()

@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from .models import AgentState
 from .planner import GlobalPlannerAgent
@@ -7,10 +8,14 @@ from .critic import CriticAgent
 from nexus.mcp_fabric import MCPFabric, ToolSpec
 
 class OrchestrationKernel:
-    def __init__(self):
+    def __init__(self, enable_dynamic_tools: bool | None = None):
         self.planner = GlobalPlannerAgent()
         self.executor = ExecutionAgent()
         self.critic = CriticAgent()
+        if enable_dynamic_tools is None:
+            env_value = os.getenv("NEXUS_ENABLE_DYNAMIC_TOOLS", "1").strip().lower()
+            enable_dynamic_tools = env_value not in {"0", "false", "no", "off"}
+        self.enable_dynamic_tools = enable_dynamic_tools
         self.fabric = MCPFabric()
 
     def run_exploration(self, initial_context: str, max_steps: int = 50):
@@ -26,6 +31,7 @@ class OrchestrationKernel:
 
     async def run_exploration_async(self, initial_context: str, max_steps: int = 50):
         state = AgentState(current_context=initial_context)
+        attempted_gap_signatures: set[str] = set()
 
         for step in range(max_steps):
             print(f"\n--- Step {step + 1}/{max_steps} ---")
@@ -43,7 +49,7 @@ class OrchestrationKernel:
             state.step_count += 1
 
             # 3b. If the planner/executor surfaced a capability gap, synthesize tools on demand.
-            if self._needs_tool_gap(action.action_type, action.parameters, result):
+            if self.enable_dynamic_tools and self._needs_tool_gap(action.action_type, action.parameters, result):
                 gap_description = (
                     action.parameters.get("tool_gap_description")
                     or result.output
@@ -51,20 +57,26 @@ class OrchestrationKernel:
                 )
                 target_system = action.parameters.get("target_system", "")
                 tool_specs = self._coerce_tool_specs(action.parameters.get("tools"))
-
-                tool_names = await self.fabric.synthesize_and_mount(
+                gap_signature = self._build_gap_signature(
+                    action_type=action.action_type,
                     gap_description=gap_description,
                     target_system=target_system,
-                    tools=tool_specs,
                 )
-                state.history.append(f"Synthesized tools: {tool_names}")
+
+                # Avoid repeatedly re-synthesizing the same gap in long loops.
+                if gap_signature not in attempted_gap_signatures:
+                    attempted_gap_signatures.add(gap_signature)
+                    await self.fabric.synthesize_and_mount(
+                        gap_description=gap_description,
+                        target_system=target_system,
+                        tools=tool_specs,
+                    )
 
                 call_tool_name = action.parameters.get("call_tool_name")
                 if call_tool_name:
                     call_tool_arguments = action.parameters.get("call_tool_arguments", {})
                     resp = await self.fabric.call_tool(call_tool_name, call_tool_arguments)
                     state.current_context = resp.result if resp.success else resp.error
-                    state.history.append(f"Tool call {call_tool_name}: {resp.success}")
 
             # 4. Asynchronous Evaluation (Synchronous here for simplicity)
             health_score = self.critic.evaluate_state(state)
@@ -75,22 +87,30 @@ class OrchestrationKernel:
                 # Basic backtracking mechanism for the simulation
                 state.current_context = "Backtracked to safe state."
 
-        # Enforce the max_steps contract: ensure step_count and history
-        # length do not exceed the requested `max_steps` (tests assert this).
-        if state.step_count > max_steps:
-            state.step_count = max_steps
-        if len(state.history) > max_steps:
-            state.history = state.history[:max_steps]
-
         return state
 
     @staticmethod
     def _needs_tool_gap(action_type: str, parameters, result) -> bool:
         if action_type in {"TOOL_GAP", "MCP_TOOL_GAP", "NEEDS_TOOL"}:
             return True
-        if isinstance(parameters, dict) and parameters.get("needs_new_tool"):
+
+        if not isinstance(parameters, dict):
+            return False
+
+        if parameters.get("needs_new_tool"):
             return True
-        return not result.success and action_type not in {"EXPLORE_NODE", "QUERY_DB", "IDLE"}
+
+        # Treat explicit gap/tool metadata as an intent to synthesize tools.
+        explicit_gap_keys = {
+            "tool_gap_description",
+            "tools",
+            "call_tool_name",
+            "target_system",
+        }
+        if any(k in parameters for k in explicit_gap_keys):
+            return True
+
+        return False
 
     @staticmethod
     def _coerce_tool_specs(raw_tools) -> list[ToolSpec]:
@@ -106,3 +126,11 @@ class OrchestrationKernel:
                     tool_specs.append(ToolSpec(**item))
 
         return tool_specs
+
+    @staticmethod
+    def _build_gap_signature(action_type: str, gap_description: str, target_system: str) -> str:
+        return "|".join([
+            action_type.strip(),
+            (gap_description or "").strip(),
+            (target_system or "").strip(),
+        ])
