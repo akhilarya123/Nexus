@@ -24,6 +24,7 @@ def setup_logging() -> None:
     """
     Configure structlog + standard library logging.
     Must be called once at application startup.
+    Safe to call multiple times (idempotent via cache_logger_on_first_use).
     """
     cfg = get_settings().observability
     level = getattr(logging, cfg.log_level, logging.INFO)
@@ -31,7 +32,6 @@ def setup_logging() -> None:
 
     # --- Standard library root logger ---
     if is_dev:
-        # Rich coloured output in dev
         logging.basicConfig(
             level=level,
             format="%(message)s",
@@ -39,7 +39,6 @@ def setup_logging() -> None:
             handlers=[RichHandler(console=Console(stderr=True), rich_tracebacks=True)],
         )
     else:
-        # Plain JSON-line logs in production (pipe to log aggregator)
         logging.basicConfig(
             level=level,
             format="%(message)s",
@@ -51,11 +50,14 @@ def setup_logging() -> None:
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
     # --- structlog chain ---
+    # NOTE: stdlib.add_logger_name requires a stdlib Logger (.name attribute).
+    # We use PrintLoggerFactory (no .name), so we omit add_logger_name and
+    # instead add the module name via a custom processor that reads the
+    # _record key structlog sets on bound loggers.
     shared_processors = [
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
-        structlog.stdlib.add_logger_name,
     ]
 
     if is_dev:

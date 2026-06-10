@@ -57,7 +57,7 @@ benchmark:  ## Run the full end-to-end benchmark (50 steps, no Ollama)
 	$(PYTHON) scripts/run_benchmark.py
 
 benchmark-llm:  ## Run benchmark with real gemma3 synthesis (requires: ollama serve)
-	python scripts/run_benchmark.py --use-llm
+	$(PYTHON) scripts/run_benchmark.py --use-llm
 
 test-all:  ## Run all tests including integration (requires services up)
 	$(PYTHON) -m pytest tests/ -v -s

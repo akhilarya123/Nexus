@@ -19,7 +19,9 @@ crashing, and emits OpenTelemetry traces to Jaeger.
 Usage:
     runner = BenchmarkRunner(max_steps=50)
     results = await runner.run()
-    print(results["metrics"]["mcp_fabric"]["synthesis_successes"])
+    # results is the flat metrics snapshot:
+    print(results["mcp_fabric"]["synthesis_successes"])
+    print(results["orchestration"]["steps_executed"])
 """
 
 from __future__ import annotations
@@ -91,7 +93,7 @@ class BenchmarkRunner:
             snapshot = self.metrics.snapshot()
             self._write_results(run_id, snapshot)
             print_final_report(self.metrics, run_name=run_id)
-            return snapshot
+            return snapshot   # flat dict: results["mcp_fabric"], results["orchestration"], etc.
 
         finally:
             await self.fabric.shutdown()
