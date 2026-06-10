@@ -1,0 +1,223 @@
+# Nexus — Image Generation Prompts
+# Save generated images to docs/ folder with the filenames listed below.
+# Recommended tools: Midjourney, DALL-E 3, Stable Diffusion, or Adobe Firefly.
+# Style guide for all images: dark background (#0d1117), cyan/blue accent colors,
+# clean technical aesthetic, no gradients, professional whitepaper style.
+
+================================================================================
+IMAGE 1 — docs/architecture.png
+FILENAME: architecture.png
+README usage: Main architecture diagram (replaces the ASCII art block)
+DIMENSIONS: 1400 × 800px (16:9 landscape)
+================================================================================
+
+PROMPT:
+"Technical software architecture diagram on a very dark navy blue background (#0d1117).
+Clean, minimalist whitepaper style with no gradients. Four main rectangular boxes
+arranged in a 2x2 grid layout, each with rounded corners and a thin bright cyan border.
+
+Top-left box labeled 'ORCHESTRATION KERNEL' in bold white, contains the text
+'MCTS Planning' and 'Actor-Critic Swarm' in smaller cyan monospace font.
+
+Top-right box labeled 'EPISTEMIC ENGINE' in bold white, contains the text
+'Neo4j Graph RAG' and 'Qdrant Vector Memory' in smaller purple monospace font.
+
+Bottom-left box labeled 'DYNAMIC MCP FABRIC' in bold white, contains the text
+'Synthesizer Agent' and 'Sandbox / Router' in smaller yellow monospace font.
+
+Bottom-right box labeled 'OBSERVABILITY' in bold white, contains the text
+'OpenTelemetry → Jaeger' and 'Rich Dashboard' in smaller green monospace font.
+
+In the center of the 2x2 grid, a glowing bright cyan circle labeled 'NEXUS KERNEL'
+in bold white. Thin glowing arrows in matching accent colors connecting all four
+boxes to the center circle. The arrows should pulse outward from center.
+
+At the very bottom, a thin label: 'LLM: gemma3 via Ollama (local, no API key)'
+in small gray text.
+
+No gradients, no people, no photorealism. Pure clean technical diagram aesthetic.
+Similar to a Kubernetes architecture diagram or AWS reference architecture.
+Background: #0d1117. Text: white and cyan. Very high contrast."
+
+================================================================================
+IMAGE 2 — docs/mcts_flow.png
+FILENAME: mcts_flow.png
+README usage: MCTS planning cycle diagram
+DIMENSIONS: 1200 × 700px
+================================================================================
+
+PROMPT:
+"A Monte Carlo Tree Search algorithm diagram on a very dark background (#0d1117).
+Clean technical illustration in whitepaper style.
+
+Show a tree structure with one root node at the top (labeled 'AgentState S0' in
+white, represented as a bright cyan circle). From the root, three branches spread
+downward to three child nodes. From the middle child, two more branches extend
+to grandchild nodes. All nodes are circles with thin cyan borders.
+
+One branch is highlighted in bright red with an X mark — labeled 'PRUNED by Critic'
+in small red text. The pruned subtree is grayed out.
+
+The best path is highlighted with a thick glowing green arrow tracing from root
+down through the highest-visited nodes, labeled 'Best Path Q(s,a)' in green.
+
+On the right side, a small vertical legend box:
+- 'SELECT: UCT = Q/N + C·√(ln N_parent / N)' in cyan monospace
+- 'EXPAND: LLM generates children' in yellow monospace
+- 'SIMULATE: Critic scores leaf' in blue monospace
+- 'BACKPROP: Update Q-values' in green monospace
+
+Each node shows a small number inside representing visit count.
+A glowing arc labeled 'exploration_constant C = 1.414' curves above the tree.
+
+Very dark background, no gradients, professional technical style."
+
+================================================================================
+IMAGE 3 — docs/mcp_synthesis.png
+FILENAME: mcp_synthesis.png
+README usage: MCP tool synthesis pipeline diagram
+DIMENSIONS: 1400 × 500px (wide banner)
+================================================================================
+
+PROMPT:
+"A horizontal left-to-right pipeline flow diagram on a very dark background (#0d1117).
+Five rectangular stages connected by thick glowing arrows, whitepaper technical style.
+
+Stage 1 (leftmost): Dark box with bright red border, labeled 'CAPABILITY GAP' in white.
+Inside text: 'Agent hits unknown Postgres instance — no tool exists' in small gray monospace.
+Icon: a red warning triangle.
+
+Arrow → pointing right, labeled 'synthesis request' in small cyan text above it.
+
+Stage 2: Dark box with bright yellow border, labeled 'SYNTHESIZER AGENT' in white.
+Inside text: 'gemma3 writes Python MCP server code' in small gray monospace.
+Icon: a yellow code bracket symbol </>.
+
+Arrow → pointing right, labeled 'generated code' in small yellow text.
+
+Stage 3: Dark box with bright orange border, labeled 'SANDBOX VALIDATION' in white.
+Inside text: '4-stage: static → boot → tools/list → tools/call' in small gray monospace.
+Small checklist of 4 green checkmarks on the right side of this box.
+Icon: a shield with checkmark.
+
+Arrow → pointing right, labeled 'validated server' in small green text.
+
+Stage 4: Dark box with bright cyan border, labeled 'MCP ROUTER' in white.
+Inside text: 'hot-plug into live registry — zero kernel restart' in small gray monospace.
+Icon: a lightning bolt.
+
+Arrow → pointing right, labeled 'tool available' in small white text.
+
+Stage 5 (rightmost): Dark box with bright green border, labeled 'EXECUTION AGENT' in white.
+Inside text: 'Calls new tool via JSON-RPC 2.0' in small gray monospace.
+Icon: a green checkmark circle.
+
+All boxes have rounded corners and a slight inner glow matching their border color.
+No gradients, no people, technical diagram aesthetic, background #0d1117."
+
+================================================================================
+IMAGE 4 — docs/epistemic_engine.png
+FILENAME: epistemic_engine.png
+README usage: Dual-layer memory architecture diagram
+DIMENSIONS: 1200 × 600px
+================================================================================
+
+PROMPT:
+"A technical diagram showing a dual-layer memory architecture on a very dark
+background (#0d1117). Clean, whitepaper style with no gradients.
+
+The diagram has two horizontal layers separated by a thin dashed white line.
+
+TOP LAYER — labeled 'GRAPH LAYER (Neo4j)' in bold purple on the left:
+Show 6-8 circular nodes of different sizes arranged in a network graph.
+Each node has a short label: 'api-gateway', 'auth-service', 'postgres-main',
+'users', 'redis', 'verify_token'. Nodes are connected by directional arrows
+with small labels: 'DEPENDS_ON', 'CALLS', 'CONTAINS' in tiny gray monospace text.
+The nodes glow faintly in purple. This represents structural/topological memory.
+
+BOTTOM LAYER — labeled 'VECTOR LAYER (Qdrant)' in bold cyan on the left:
+Show a row of 5 thin vertical rectangles side by side, like bars in a histogram,
+each a different height. Each bar has a small label beneath:
+'pod OOM error', 'slow query', 'auth timeout', 'connection pool', 'cache miss'.
+Above the bars, small floating dots connected by thin lines suggesting
+high-dimensional vector space. This represents episodic/semantic memory.
+
+In the CENTER between the layers, a double-headed arrow labeled
+'Context Router: concurrent retrieval + LLM compression → 10× token reduction'
+in small bright white text.
+
+On the far right of the diagram, a small box labeled 'EpistemicContext'
+with two sections: 'Graph nodes: 47' and 'Memories: 12' and 'Latency: 38ms'.
+
+Background #0d1117, purple and cyan accent colors, professional technical style."
+
+================================================================================
+IMAGE 5 — docs/benchmark_dashboard.png
+FILENAME: benchmark_dashboard.png
+README usage: Screenshot mockup of the terminal benchmark dashboard
+DIMENSIONS: 1200 × 600px
+================================================================================
+
+PROMPT:
+"A realistic terminal/console UI screenshot mockup on a very dark background (#0d1117).
+Show what looks like an actual running terminal window with a Rich Python library
+dashboard displayed inside it.
+
+The terminal has a thin outer border and a title bar at the top reading
+'NEXUS KERNEL LIVE — 00:03:42' in small white monospace.
+
+Inside, show a 3-column layout divided by thin line borders:
+
+Left column header: '⚡ ORCHESTRATION' in bold cyan
+Rows of metrics in monospace font:
+  Steps executed     47 / 50
+  MCTS simulations   940
+  Paths pruned       [yellow]12[/]
+  Backtracks         [yellow]3[/]
+  Critic score avg   [green]0.742[/]
+  Plan p95 latency   87ms
+
+Middle column header: '🧠 EPISTEMIC ENGINE' in bold purple
+Rows:
+  Graph nodes        143
+  Graph edges        289
+  Memories stored    312
+  Retrieval p50      31ms
+  Retrieval p95      48ms
+  Compression avg    8.2×
+
+Right column header: '🔧 MCP FABRIC' in bold yellow
+Rows:
+  Synth attempts     5
+  Synth succeeded    [green]5[/]
+  Pass rate          [green]100%[/]
+  Tools mounted      [green]11[/]
+  Tool calls         42
+  Tool p95 latency   12ms
+
+At the bottom, a footer row:
+  LLM: 234 calls | p95: 1.2s    [green]Errors: 0[/]    ⏱ 00:03:42
+
+The text uses realistic terminal color codes: cyan for section headers,
+green for good values, yellow for warnings, white for normal values.
+Monospace font throughout. Very realistic terminal aesthetic, like a screenshot
+of an actual running Python program. Background #0d1117."
+
+================================================================================
+HOW TO USE THESE IMAGES
+================================================================================
+
+1. Generate each image using the prompt above (Midjourney, DALL-E 3, etc.)
+2. Save with the exact filename specified (e.g. architecture.png)
+3. Place all images in the docs/ folder of the project
+4. The README.md already has the correct image references pointing to docs/
+5. Recommended dimensions are provided but any reasonable aspect ratio works
+
+STYLE CONSISTENCY TIPS:
+- Always use #0d1117 as background (matches GitHub dark mode)
+- Primary accent: cyan (#00b4d8) for system/infrastructure elements
+- Secondary accent: purple (#9d4edd) for AI/memory elements
+- Warning color: yellow (#ffd60a) for alerts
+- Success color: green (#06d6a0) for confirmations
+- All text: white or light gray, monospace font for technical labels
+- No gradients, no photorealism, no human figures

@@ -7,6 +7,7 @@ from .execution import ExecutionAgent
 from .critic import CriticAgent
 from nexus.mcp_fabric import MCPFabric, ToolSpec
 
+
 class OrchestrationKernel:
     def __init__(self, enable_dynamic_tools: bool | None = None):
         self.planner = GlobalPlannerAgent()
