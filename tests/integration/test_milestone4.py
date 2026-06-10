@@ -287,7 +287,7 @@ class TestBenchmarkRunner:
         # Run without needing Neo4j/Qdrant (vector store failures are caught)
         results = await runner.run()
 
-        assert results["metrics"]["orchestration"]["steps_executed"] == 10
+        assert results["orchestration"]["steps_executed"] == 10
         print(f"\n✅ AC1: 10 steps completed without crash")
 
     @pytest.mark.asyncio
@@ -305,7 +305,7 @@ class TestBenchmarkRunner:
         )
         results = await runner.run()
 
-        synth = results["metrics"]["mcp_fabric"]["synthesis_successes"]
+        synth = results["mcp_fabric"]["synthesis_successes"]
         assert synth >= 1, f"Expected >=1 synthesis, got {synth}"
         print(f"\n✅ AC2: {synth} MCP server(s) synthesized")
 
@@ -324,7 +324,7 @@ class TestBenchmarkRunner:
         )
         results = await runner.run()
 
-        fab = results["metrics"]["mcp_fabric"]
+        fab = results["mcp_fabric"]
         calls = fab["tool_calls_total"]
         errors = fab["tool_call_errors"]
         assert calls > 0, "No tool calls were made"
@@ -341,7 +341,7 @@ class TestBenchmarkRunner:
 
         runner = BenchmarkRunner(max_steps=10, use_llm=False, results_dir=tmp_path)
         results = await runner.run()
-        snap = results["metrics"]
+        snap = results
 
         # All top-level sections present
         for section in ["orchestration", "epistemic", "mcp_fabric", "llm", "system"]:
@@ -390,9 +390,9 @@ class TestBenchmarkRunner:
         runner = BenchmarkRunner(max_steps=50, use_llm=False, results_dir=tmp_path)
         results = await runner.run()
 
-        attempts = results["metrics"]["mcp_fabric"]["synthesis_attempts"]
-        successes = results["metrics"]["mcp_fabric"]["synthesis_successes"]
-        steps = results["metrics"]["orchestration"]["steps_executed"]
+        attempts = results["mcp_fabric"]["synthesis_attempts"]
+        successes = results["mcp_fabric"]["synthesis_successes"]
+        steps = results["orchestration"]["steps_executed"]
 
         assert steps == 50
         assert attempts >= 5, f"Expected >=5 synthesis attempts (one per gap), got {attempts}"
@@ -402,5 +402,5 @@ class TestBenchmarkRunner:
             f"\n✅ Full 50-step run: {steps} steps, "
             f"{attempts} synthesis attempts, {successes} successes"
         )
-        print(f"   Tool calls: {results['metrics']['mcp_fabric']['tool_calls_total']}")
-        print(f"   Memories stored: {results['metrics']['epistemic']['memories_stored']}")
+        print(f"   Tool calls: {results['mcp_fabric']['tool_calls_total']}")
+        print(f"   Memories stored: {results['epistemic']['memories_stored']}")

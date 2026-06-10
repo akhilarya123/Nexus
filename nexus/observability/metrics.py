@@ -14,13 +14,13 @@ No external metrics backend needed — everything lives in memory and can be:
   2. Exported to Jaeger as span attributes (via tracing.py)
   3. Written to a JSON results file for the benchmark report
 
-Design: all operations are thread-safe (asyncio.Lock) and lock-free for reads.
+Design: all operations are thread-safe (via internal deque/atomic updates) and lock-free for reads.
 """
 
 from __future__ import annotations
 
 import time
-from collections import defaultdict, deque
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,8 +33,8 @@ log = structlog.get_logger(__name__)
 class Counter:
     """Monotonically increasing integer counter."""
     name: str
-    value: int = 0
     description: str = ""
+    value: int = 0
 
     def inc(self, amount: int = 1) -> None:
         self.value += amount
@@ -47,8 +47,8 @@ class Counter:
 class Gauge:
     """A value that can go up and down (current state)."""
     name: str
-    value: float = 0.0
     description: str = ""
+    value: float = 0.0
 
     def set(self, v: float) -> None:
         self.value = v
@@ -69,7 +69,11 @@ class Histogram:
     name: str
     description: str = ""
     max_samples: int = 1000
-    _samples: deque = field(default_factory=lambda: deque(maxlen=1000))
+    # Explicitly exclude from standard init, handled during post-init instantiation
+    _samples: deque = field(default_factory=lambda: deque(maxlen=1000), init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self._samples = deque(maxlen=self.max_samples)
 
     def observe(self, value: float) -> None:
         self._samples.append(value)
