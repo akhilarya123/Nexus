@@ -3,7 +3,6 @@
 
 > **Stack**: Python 3.11 · Ollama (gemma3) · Neo4j · Qdrant · Redis · Jaeger · Docker  
 > **Zero paid APIs** — everything runs locally.  
-> **Status**: All 4 Milestones complete ✅
 
 ---
 
