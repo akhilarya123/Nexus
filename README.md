@@ -2,7 +2,7 @@
 ### A Self-Evolving Multi-Agent Kernel for Long-Horizon Systems Exploration and Dynamic MCP Tool Synthesis
 
 > **Stack**: Python 3.11 · Ollama (gemma3) · Neo4j · Qdrant · Redis · Jaeger · Docker  
-> **Zero paid APIs** — everything runs locally on Mac M1.  
+> **Zero paid APIs** — everything runs locally.  
 > **Status**: All 4 Milestones complete ✅
 
 ---
